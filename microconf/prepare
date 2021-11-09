@@ -83,6 +83,14 @@ function uc_define_version {
 	fi
 
 	export uc_$varname="$VERSION"
+
+	major=$(expr "$VERSION" : "\([^.]*\).*")
+	export uc_${varname}_major="$major"
+
+	minor=$(expr "$VERSION" : "[^.]*\.\([^.]*\).*")
+	if [ -n "$minor" ]; then
+		export uc_${varname}_minor="$minor"
+	fi
 }
 
 ##################################################################

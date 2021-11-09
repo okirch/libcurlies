@@ -9,7 +9,7 @@ LIB_OBJS= curlies.o \
 
 SHLIB	= libcurlies.$(SHLIB_EXTENSION)
 VERSIONED_SHLIB = \
-	  $(SHLIB).$(CURLIES_VERSION)
+	  $(SHLIB).$(CURLIES_MAJOR)
 
 all: $(SHLIB)
 
