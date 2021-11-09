@@ -1,0 +1,9 @@
+*.swp
+*.o
+*.so
+library/config.h
+library/version.h
+Make.defs
+libcurlies.pc
+tests/output
+tests/curlies-test

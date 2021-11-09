@@ -1,0 +1,123 @@
+##################################################################
+# Python version
+##################################################################
+if [ -z "$uc_with_python" -o "$uc_with_python" = "detect" ]; then
+	echo -n "Detecting python version... "
+	uc_with_python=
+
+	if [ "$uc_with_pkg_config" = "yes" ]; then
+		set -- $(uc_pkg_config_find_highest_version python)
+
+		case "$1" in
+		?*)	uc_with_python=$1
+			python_pkgconfig=$2
+			uc_python_libdir=$(pkg-config --variable libdir "$python_pkgconfig")
+			uc_python_incdir=$(pkg-config --variable includedir "$python_pkgconfig")
+			uc_python_cflags=$(pkg-config --cflags "$python_pkgconfig")
+			uc_python_libs=$(pkg-config --libs "$python_pkgconfig")
+			;;
+		'')	: ;;
+		esac
+	fi
+
+	if [ -z "$uc_with_python" ]; then
+		path="$(ls -d "$uc_includedir/python"* 2>/dev/null | tail -1)"
+		if [ -z "$path" ]; then
+			echo "Unable to determine python uc_includedir" >&2
+			exit 1
+		fi
+		uc_with_python=$(expr "$path" : "$uc_includedir/python\(.*\)")
+		uc_python_incdir=$path
+	fi
+
+	case $uc_with_python in
+	2*)	echo "$uc_with_python, which is too low"
+		echo "Aborting" >&2
+		exit 2;;
+	?*)	echo "$uc_with_python";;
+	'')
+		echo "not found" >&2
+		uc_with_python=none;;
+	esac
+fi
+
+
+if [ "$uc_with_python" = "none" ]; then
+	uc_python_incdir=""
+	uc_python_cflags=""
+	uc_python_libdir=""
+	uc_python_libs=""
+	uc_python_package_dir=""
+else
+	echo -n "Checking for python interpreter... "
+	search="python$uc_with_python"
+	python_major=$(expr "$uc_with_python" : "\([0-9]*\).*")
+	search+=" python$python_major"
+	search+=" python"
+
+	python_binaries=""
+	for name in $search; do
+		path="$uc_prefix/bin/$name"
+		if [ -x "$path" ]; then
+			python_binaries+=" $path"
+		fi
+	done
+
+	for name in $search; do
+		path=$(type -p $name)
+		python_binaries+=" $path"
+	done
+
+	uc_python_interp_path=""
+	for path in $python_binaries; do
+		version=$($path -c 'import sys; si = sys.version_info; print("%d.%d" % (si.major, si.minor))')
+		if [ "$version" = "$uc_with_python" ]; then
+			uc_python_interp_path="$path"
+		fi
+	done
+
+	if [ -z "$uc_python_interp_path" ]; then
+		echo "not found"
+	else
+		echo "$uc_python_interp_path"
+	fi
+
+	if [ -z "$uc_python_incdir" ]; then
+		uc_python_incdir="$uc_includedir/python$uc_with_python"
+	fi
+	if [ -z "$uc_python_cflags" ]; then
+		uc_python_cflags="-I$uc_python_incdir"
+	fi
+
+	if [ -z "$uc_python_libdir" ]; then
+		uc_python_libdir="$uc_arch_libdir/python$uc_with_python"
+		uc_python_libs="-lpython$uc_with_python"
+	fi
+	if [ -z "$uc_python_libs" ]; then
+		uc_python_libs="-L$uc_python_libdir -lpython$uc_with_python"
+	fi
+
+	echo -n "Checking for python's site-packages path... "
+	uc_python_package_dir=""
+	if [ -n "$uc_python_interp_path" ]; then
+		for path in $($uc_python_interp_path -c 'import sys; print("\n".join(sys.path))'); do
+			case $path in
+			"$uc_python_libdir"/*/site-packages|"$uc_prefix"/*/site-packages)
+				uc_python_package_dir="$path"
+				break;;
+			esac
+		done
+
+	fi
+
+	if [ -n "$uc_python_package_dir" ]; then
+		echo "$uc_python_package_dir"
+	else
+		uc_python_package_dir="$uc_python_libdir/site-packages"
+		echo "$uc_python_package_dir (may not be in python's default search path)"
+	fi
+
+	uc_check_prefix python_package_dir "$uc_python_package_dir"
+fi
+
+

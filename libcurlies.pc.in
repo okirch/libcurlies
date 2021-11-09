@@ -1,0 +1,12 @@
+prefix=@PREFIX@
+libdir=@ARCH_LIBDIR@
+python_instdir=@PYTHON_PACKAGE_DIR@
+python_cflags=@PYTHON_CFLAGS@
+python_libs=@PYTHON_LIBS@
+
+Name: curly
+Description: curly configuration file handline
+Version: @CURLIES_VERSION@
+Cflags: 
+Libs: -L@ARCH_LIBDIR@ -lcurlies
+
