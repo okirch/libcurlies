@@ -130,12 +130,15 @@ curly_parser_do(curly_parser_t *p, curly_node_t *cfg)
 		save_string(&identifier, value);
 
 		tok = curly_parser_get_token(p, &value);
-		if (tok == Identifier || tok == StringConstant) {
-			curly_node_t *subgroup;
-
+		if (tok == Identifier || tok == StringConstant || tok == NumberConstant) {
 			save_string(&name, value);
 
 			tok = curly_parser_get_token(p, &value);
+		}
+
+		if (name || tok == LeftBrace) {
+			curly_node_t *subgroup;
+
 			switch (tok) {
 			case Error:
 				return false;
@@ -146,7 +149,8 @@ curly_parser_do(curly_parser_t *p, curly_node_t *cfg)
 				break;
 
 			case LeftBrace:
-				/* identifier name { ... } */
+				/* identifier { ... }
+				 * identifier name { ... } */
 				subgroup = curly_node_add_child(cfg, identifier, name);
 				if (subgroup == NULL) {
 					curly_parser_error(p, "unable to create subgroup");
@@ -163,12 +167,41 @@ curly_parser_do(curly_parser_t *p, curly_node_t *cfg)
 				}
 				break;
 
+			case Comma:
+				/* identifier value, value, ... */
+				curly_node_add_attr_list(cfg, identifier, name);
+
+				while (tok == Comma) {
+					tok = curly_parser_get_token(p, &value);
+					if (tok == Identifier || tok == StringConstant || tok == NumberConstant) {
+						curly_node_add_attr_list(cfg, identifier, value);
+						tok = curly_parser_get_token(p, &value);
+					} else {
+						/* We could be more liberal here and accept things like
+						 *   colors	red, green, blue, ;
+						 *   food {
+						 *      flavors	bland, spicy, salty
+						 *   }
+						 *
+						 * ie excess commas, or missing commas at the end
+						 * of a group.
+						 */
+						goto unexpected_token_error;
+					}
+				}
+
+				if (tok == RightBrace) {
+					curly_parser_pushback(p, tok);
+					break;
+				}
+				if (tok != Semicolon)
+					goto unexpected_token_error;
+				break;
+
 			default:
 				goto unexpected_token_error;
 			}
-		} else if (tok == NumberConstant) {
-			/* identifier value ";" */
-			curly_node_set_attr(cfg, identifier, value);
+#if 0
 		} else if (tok == LeftBrace) {
 			/* attr { foo, bar, baz ... } */
 
@@ -191,6 +224,7 @@ curly_parser_do(curly_parser_t *p, curly_node_t *cfg)
 					goto unexpected_token_error;
 				}
 			}
+#endif
 		} else {
 			goto unexpected_token_error;
 		}
@@ -236,29 +270,31 @@ __curly_print(const curly_node_t *cfg, FILE *fp, int indent)
 	const curly_node_t *child;
 
 	for (attr = cfg->attrs; attr; attr = attr->next) {
-		unsigned int n;
+		unsigned int n = 0;
 
 		fprintf(fp, "%*.*s%-12s ",
 				indent, indent, "",
 				attr->name);
-		if (attr->nvalues == 1) {
-			fprintf(fp, " \"%s\";\n", attr->values[0]);
-		} else {
-			fprintf(fp, " {\n");
-			for (n = 0; n < attr->nvalues; ++n) {
-				fprintf(fp, "%*.*s   \"%s\",\n",
-						indent, indent, "",
-						attr->values[n]);
-			}
-			fprintf(fp, "%*.*s}\n", indent, indent, "");
+		for (n = 0; n < attr->nvalues; ++n)  {
+			if (n)
+				fprintf(fp, ",\n%*.*s", indent + 13, indent + 13, "");
+			fprintf(fp, " \"%s\"", attr->values[n]);
 		}
+		fprintf(fp, ";\n");
 	}
 
 	for (child = cfg->children; child; child = child->next) {
-		fprintf(fp, "%*.*s%s \"%s\" {\n",
-				indent, indent, "",
-				child->type,
-				child->name);
+		if (child->name) {
+			fprintf(fp, "%*.*s%s \"%s\" {\n",
+					indent, indent, "",
+					child->type,
+					child->name);
+		} else {
+			fprintf(fp, "%*.*s%s {\n",
+					indent, indent, "",
+					child->type);
+		}
+
 		__curly_print(child, fp, indent + 4);
 		fprintf(fp, "%*.*s}\n",
 				indent, indent, "");
