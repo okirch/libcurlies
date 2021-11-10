@@ -142,69 +142,67 @@ curly_parser_do(curly_parser_t *p, curly_node_t *cfg)
 			goto unexpected_token_error;
 		}
 
-		{
-			switch (tok) {
-			case Error:
+		switch (tok) {
+		case Error:
+			return false;
+
+		case Semicolon:
+			/* identifier value ";" */
+			curly_node_set_attr(cfg, identifier, name);
+			break;
+
+		case LeftBrace:
+			/* identifier { ... }
+			 * identifier name { ... } */
+			subgroup = curly_node_add_child(cfg, identifier, name);
+			if (subgroup == NULL) {
+				curly_parser_error(p, "unable to create subgroup");
+				return false;
+			}
+
+			if (!curly_parser_do(p, subgroup))
 				return false;
 
-			case Semicolon:
-				/* identifier value ";" */
-				curly_node_set_attr(cfg, identifier, name);
-				break;
-
-			case LeftBrace:
-				/* identifier { ... }
-				 * identifier name { ... } */
-				subgroup = curly_node_add_child(cfg, identifier, name);
-				if (subgroup == NULL) {
-					curly_parser_error(p, "unable to create subgroup");
-					return false;
-				}
-
-				if (!curly_parser_do(p, subgroup))
-					return false;
-
-				tok = curly_parser_get_token(p, &value);
-				if (tok != RightBrace) {
-					curly_parser_error(p, "missing closing brace");
-					return false;
-				}
-				break;
-
-			case Comma:
-				/* identifier value, value, ... */
-				curly_node_add_attr_list(cfg, identifier, name);
-
-				while (tok == Comma) {
-					tok = curly_parser_get_token(p, &value);
-					if (tok == Identifier || tok == StringConstant || tok == NumberConstant) {
-						curly_node_add_attr_list(cfg, identifier, value);
-						tok = curly_parser_get_token(p, &value);
-					} else {
-						/* We could be more liberal here and accept things like
-						 *   colors	red, green, blue, ;
-						 *   food {
-						 *      flavors	bland, spicy, salty
-						 *   }
-						 *
-						 * ie excess commas, or missing commas at the end
-						 * of a group.
-						 */
-						goto unexpected_token_error;
-					}
-				}
-
-				if (tok == RightBrace) {
-					curly_parser_pushback(p, tok);
-					break;
-				}
-				if (tok != Semicolon)
-					goto unexpected_token_error;
-				break;
-
-			default:
-				goto unexpected_token_error;
+			tok = curly_parser_get_token(p, &value);
+			if (tok != RightBrace) {
+				curly_parser_error(p, "missing closing brace");
+				return false;
 			}
+			break;
+
+		case Comma:
+			/* identifier value, value, ... */
+			curly_node_add_attr_list(cfg, identifier, name);
+
+			while (tok == Comma) {
+				tok = curly_parser_get_token(p, &value);
+				if (tok == Identifier || tok == StringConstant || tok == NumberConstant) {
+					curly_node_add_attr_list(cfg, identifier, value);
+					tok = curly_parser_get_token(p, &value);
+				} else {
+					/* We could be more liberal here and accept things like
+					 *   colors	red, green, blue, ;
+					 *   food {
+					 *      flavors	bland, spicy, salty
+					 *   }
+					 *
+					 * ie excess commas, or missing commas at the end
+					 * of a group.
+					 */
+					goto unexpected_token_error;
+				}
+			}
+
+			if (tok == RightBrace) {
+				curly_parser_pushback(p, tok);
+				break;
+			}
+			if (tok != Semicolon)
+				goto unexpected_token_error;
+			break;
+
+		default:
+			goto unexpected_token_error;
 		}
 
 		save_string(&identifier, NULL);
