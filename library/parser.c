@@ -401,7 +401,7 @@ curly_parser_get_token(curly_parser_t *parser, char **token_string)
 
 	dst = parser->toknbuf;
 	if (isalnum(*pos)) {
-		while (isalnum(*pos) || strchr("_.:/-", *pos))
+		while (isalnum(*pos) || (*pos && strchr("_.:/-", *pos)))
 			*dst++ = *pos++;
 
 		token = Identifier;
