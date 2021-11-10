@@ -87,6 +87,17 @@ curly_parser_destroy(curly_parser_t *parser)
 	memset(parser, 0, sizeof(*parser));
 }
 
+static inline void
+save_string(char **var, const char *value)
+{
+	if (*var) {
+		free(*var);
+		*var = NULL;
+	}
+	if (value)
+		*var = strdup(value);
+}
+
 bool
 curly_parser_do(curly_parser_t *p, curly_node_t *cfg)
 {
@@ -116,13 +127,13 @@ curly_parser_do(curly_parser_t *p, curly_node_t *cfg)
 			goto unexpected_token_error;
 		}
 
-		identifier = strdup(value);
+		save_string(&identifier, value);
 
 		tok = curly_parser_get_token(p, &value);
 		if (tok == Identifier || tok == StringConstant) {
 			curly_node_t *subgroup;
 
-			name = strdup(value);
+			save_string(&name, value);
 
 			tok = curly_parser_get_token(p, &value);
 			switch (tok) {
@@ -184,10 +195,8 @@ curly_parser_do(curly_parser_t *p, curly_node_t *cfg)
 			goto unexpected_token_error;
 		}
 
-		if (identifier)
-			free(identifier);
-		if (name)
-			free(name);
+		save_string(&identifier, NULL);
+		save_string(&name, NULL);
 	}
 
 	return true;
