@@ -467,6 +467,18 @@ curly_parser_error(curly_parser_t *p, const char *msg)
 	fprintf(stderr, "%s: line %u: %s\n", file->name, file->lineno, msg);
 	if (p->pos && p->linebuf <= p->pos && p->pos < p->linebuf + sizeof(p->linebuf)) {
 		int hoff = p->pos - p->linebuf;
+		char *cp;
+
+		/* Convert all spaces to ' ' so that the ^-- HERE pointer doesn't get
+		 * confused by TABs and the like */
+		for (cp = p->linebuf; cp < p->pos; ++cp) {
+			if (isspace(*cp))
+				*cp = ' ';
+		}
+
+		/* Position the ^-- HERE pointer to the start of the token we just consumed */
+		if (hoff >= strlen(p->toknbuf))
+			hoff -= strlen(p->toknbuf);
 
 		fprintf(stderr, "%s\n", p->linebuf);
 		fprintf(stderr, "%*.*s^--- HERE\n", hoff, hoff, "");
