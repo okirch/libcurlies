@@ -335,7 +335,7 @@ __curly_parser_current(curly_parser_t *parser)
 			return NULL;
 
 		if (parser->trace)
-			printf("### ---- new buffer: \"%s\"\n", parser->linebuf);
+			fprintf(stderr, "### ---- new buffer: \"%s\"\n", parser->linebuf);
 		parser->pos = parser->linebuf;
 	}
 	return parser->pos;
@@ -368,7 +368,7 @@ void
 curly_parser_pushback(curly_parser_t *parser, curly_token_t token)
 {
 	if (parser->trace)
-		printf("### pushback token %s(%u)\n", curly_token_name(token), token);
+		fprintf(stderr, "### pushback token %s(%u)\n", curly_token_name(token), token);
 	if (parser->save) {
 		curly_parser_error(parser, "Trying to push back more than one token - no workee");
 	}
@@ -451,7 +451,7 @@ curly_parser_get_token(curly_parser_t *parser, char **token_string)
 	*dst++ = '\0';
 
 	if (parser->trace)
-		printf("### %s(%u) \"%s\"\n", curly_token_name(token), token, parser->toknbuf);
+		fprintf(stderr, "### %s(%u) \"%s\"\n", curly_token_name(token), token, parser->toknbuf);
 
 	*token_string = parser->toknbuf;
 	parser->pos = pos;
