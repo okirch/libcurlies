@@ -13,6 +13,7 @@ An attribute is a named value, or list of values.
 ```console
 workspace	"/tmp/my-workspace";
 flavors		chili, cumin, coriander, curcuma;
+count		1, 2, 3, "very large number";
 ```
 
 Programmatically, the library does not distinguish between attributes
@@ -22,7 +23,7 @@ any attribute can hold an arbitrary number values, including zero.
 of its list of values, and "appending" a value to an attribute will always
 extend its list of values.
 
-A node has a type, commonly a name, and can hold an arbitrary number of
+A node has a type, an optional name, and can hold an arbitrary number of
 attributes:
 
 ```console
@@ -33,9 +34,15 @@ network fixed {
 network private {
         prefix          192.168.8/24;
 }
+defaults {
+        use-dhcp6       true;
+}
 ```
 
-The contents of a configuration file are represented as a node as
+Having two nodes with the same type and name produces undefined results.
+The same is true for nodes that specify the same attribute name several times.
+
+In memory, the contents of a configuration file are represented as a node as
 well, with empty type and name.
 
 
