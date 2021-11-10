@@ -106,6 +106,7 @@ curly_parser_do(curly_parser_t *p, curly_node_t *cfg)
 
 	while ((tok = curly_parser_get_token(p, &value)) != EndOfFile) {
 		char *identifier = NULL, *name = NULL;
+		curly_node_t *subgroup;
 
 		switch (tok) {
 		case Error:
@@ -130,15 +131,18 @@ curly_parser_do(curly_parser_t *p, curly_node_t *cfg)
 		save_string(&identifier, value);
 
 		tok = curly_parser_get_token(p, &value);
+		if (tok == LeftBrace) {
+			/* identifier { ... group ... } */
+		} else
 		if (tok == Identifier || tok == StringConstant || tok == NumberConstant) {
 			save_string(&name, value);
 
 			tok = curly_parser_get_token(p, &value);
+		} else {
+			goto unexpected_token_error;
 		}
 
-		if (name || tok == LeftBrace) {
-			curly_node_t *subgroup;
-
+		{
 			switch (tok) {
 			case Error:
 				return false;
@@ -201,32 +205,6 @@ curly_parser_do(curly_parser_t *p, curly_node_t *cfg)
 			default:
 				goto unexpected_token_error;
 			}
-#if 0
-		} else if (tok == LeftBrace) {
-			/* attr { foo, bar, baz ... } */
-
-			/* First, clear the attribute */
-			curly_node_set_attr(cfg, identifier, NULL);
-
-			/* Now consume the contents */
-			while (1) {
-				tok = curly_parser_get_token(p, &value);
-				if (tok == Error)
-					return false;
-				if (tok == RightBrace)
-					break;
-				if (tok == Comma)
-					continue;
-
-				if (tok == Identifier || tok == StringConstant || tok == NumberConstant) {
-					curly_node_add_attr_list(cfg, identifier, value);
-				} else {
-					goto unexpected_token_error;
-				}
-			}
-#endif
-		} else {
-			goto unexpected_token_error;
 		}
 
 		save_string(&identifier, NULL);
