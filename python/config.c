@@ -803,6 +803,30 @@ ConfigNode_set_value(curlies_ConfigNode *self, PyObject *args, PyObject *kwds)
 
 	if (PyUnicode_Check(valueObj)) {
 		curly_node_set_attr(self->node, name, PyUnicode_AsUTF8(valueObj));
+	} else if (PySequence_Check(valueObj)) {
+		Py_ssize_t i, len = PySequence_Size(valueObj);
+
+		if (len < 0) {
+bad_seq:
+			PyErr_SetString(PyExc_ValueError, "bad sequence arg");
+			return NULL;
+		}
+		curly_node_set_attr(self->node, name, NULL);
+
+		for (i = 0; i < len; ++i) {
+			PyObject *itemObj = PySequence_GetItem(valueObj, i);
+
+			if (itemObj == NULL)
+				goto bad_seq;
+
+			if (!PyUnicode_Check(itemObj)) {
+				PyErr_Format(PyExc_ValueError, "bad value at sequence position %d - expected a str", (int) i);
+				Py_DECREF(itemObj);
+				return NULL;
+			}
+			curly_node_add_attr_list(self->node, name, PyUnicode_AsUTF8(itemObj));
+			Py_DECREF(itemObj);
+		}
 	} else if (valueObj == Py_None) {
 		curly_node_set_attr(self->node, name, NULL);
 	} else {
