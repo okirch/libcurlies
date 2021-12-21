@@ -690,10 +690,10 @@ ConfigNode_get_child(curlies_ConfigNode *self, PyObject *args, PyObject *kwds)
 		"name",
 		NULL
 	};
-	const char *name, *type;
+	const char *type, *name = "";
 	curly_node_t *child;
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "ss", kwlist, &type, &name))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "s|s", kwlist, &type, &name))
 		return NULL;
 
 	if (!__check_node(self))
