@@ -18,6 +18,7 @@ curlies-test: curlies-test.c
 test: curlies-test
 	mkdir -p output
 	@for conf in `ls input`; do \
+		test "$$conf" = "inclA.conf" && continue; \
 		echo "Test read/write of $$conf"; \
 		LD_PRELOAD=../library/libcurlies.so ./curlies-test input/$$conf >output/$$conf; \
 		diff -wu expected/$$conf output/$$conf || exit 1; \

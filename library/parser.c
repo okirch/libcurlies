@@ -21,6 +21,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <limits.h>
+#include <libgen.h>
 
 #include "curlies.h"
 #include "internal.h"
@@ -30,6 +32,7 @@ typedef struct curly_parser curly_parser_t;
 
 curly_file_t *	curly_file_open(const char *filename, const char *mode);
 void		curly_file_close(curly_file_t *file);
+static bool	curly_parse_include(curly_parser_t *p, const char *filename, curly_node_t *cfg);
 
 
 typedef enum {
@@ -128,6 +131,25 @@ curly_parser_do(curly_parser_t *p, curly_node_t *cfg)
 			goto unexpected_token_error;
 		}
 
+		/* include "blah.conf"; */
+		if (!strcmp(value, "include")) {
+			tok = curly_parser_get_token(p, &value);
+			if (tok != Identifier && tok != StringConstant)
+				goto unexpected_token_error;
+
+			save_string(&name, value);
+			if (curly_parser_get_token(p, &value) != Semicolon)
+				goto unexpected_token_error;
+
+			if (!curly_parse_include(p, name, cfg)) {
+				curly_parser_error(p, "unable to process include statement");
+				save_string(&name, NULL);
+				return false;
+			}
+			save_string(&name, NULL);
+			continue;
+		}
+
 		save_string(&identifier, value);
 
 		tok = curly_parser_get_token(p, &value);
@@ -216,27 +238,80 @@ unexpected_token_error:
 	return false;
 }
 
-curly_node_t *
-curly_parse(const char *filename)
+static bool
+__curly_parse(const char *filename, curly_node_t *cfg)
 {
 	curly_parser_t parser;
-	curly_node_t *cfg;
 	curly_file_t *file;
+	bool rv = true;
 
 	if (!(file = curly_file_open(filename, "r")))
-		return 0;
+		return false;
 
 	curly_parser_init(&parser, file);
 	//parser.trace = true;
+	rv = curly_parser_do(&parser, cfg);
+	curly_parser_destroy(&parser);
+
+	return rv;
+}
+
+curly_node_t *
+curly_parse(const char *filename)
+{
+	curly_node_t *cfg;
 
 	cfg = curly_node_new();
-	if (!curly_parser_do(&parser, cfg)) {
+	if (!__curly_parse(filename, cfg)) {
 		curly_node_free(cfg);
 		cfg = NULL;
 	}
 
-	curly_parser_destroy(&parser);
 	return cfg;
+}
+
+static const char *
+__curly_resolve_include(curly_parser_t *p, const char *filename)
+{
+	static char resolved[PATH_MAX];
+	char pathbuf[PATH_MAX];
+	char *pathcopy = NULL, *dir = NULL;
+
+	if (filename[0] == '/')
+		return filename;
+
+	save_string(&pathcopy, p->file->name);
+	dir = dirname(pathcopy);
+
+	if (dir == NULL)
+		dir = ".";
+	snprintf(pathbuf, sizeof(pathbuf), "%s/%s", dir, filename);
+
+	if (p->trace)
+		fprintf(stderr, "### include \"%s\" from \"%s\" -> \"%s\"\n", filename, p->file->name, pathbuf);
+	save_string(&pathcopy, NULL);
+
+	if (realpath(pathbuf, resolved) == NULL) {
+		fprintf(stderr, "Error: Cannot resolve include file \"%s\": %m\n", pathbuf);
+		return NULL;
+	}
+
+	return resolved;
+}
+
+static bool
+curly_parse_include(curly_parser_t *p, const char *filename, curly_node_t *cfg)
+{
+	const char *include_path;
+
+	include_path = __curly_resolve_include(p, filename);
+	if (include_path == NULL)
+		return false;
+
+	if (p->trace)
+		fprintf(stderr, "### including \"%s\"\n", include_path);
+
+	return __curly_parse(include_path, cfg);
 }
 
 void
