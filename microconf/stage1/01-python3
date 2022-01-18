@@ -1,9 +1,11 @@
 uc_add_option_with python
 uc_with_python=detect
 
-uc_add_help <<EOH
+uc_add_help <<"EOH"
+
+
   Override python detection
         --with-python=VERSION
         --without-python
- 
+
 EOH

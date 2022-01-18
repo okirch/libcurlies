@@ -63,6 +63,14 @@ else
 		fi
 	done
 
+	# Check for RH platform-python
+	for name in $search; do
+		path="/usr/libexec/platform-$name"
+		if [ -x "$path" ]; then
+			python_binaries+=" $path"
+		fi
+	done
+
 	for name in $search; do
 		path=$(type -p $name)
 		python_binaries+=" $path"
@@ -73,6 +81,7 @@ else
 		version=$($path -c 'import sys; si = sys.version_info; print("%d.%d" % (si.major, si.minor))')
 		if [ "$version" = "$uc_with_python" ]; then
 			uc_python_interp_path="$path"
+			break
 		fi
 	done
 
