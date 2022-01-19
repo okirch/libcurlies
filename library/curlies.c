@@ -122,6 +122,38 @@ curly_node_type(const curly_node_t *cfg)
 	return cfg->type;
 }
 
+static void
+__curly_node_attach_iterator(curly_node_t *cfg, curly_iter_t *iter)
+{
+	iter->chain = cfg->iterators;
+	cfg->iterators = iter;
+}
+
+static void
+__curly_node_detach_iterator(curly_node_t *cfg, const curly_iter_t *iter)
+{
+	curly_iter_t **pos, *rover;
+
+	for (pos = &cfg->iterators; (rover = *pos) != NULL; pos = &rover->chain) {
+		if (rover == iter) {
+			*pos = rover->chain;
+			rover->chain = NULL;
+			return;
+		}
+	}
+}
+
+static void
+__curly_node_invalidate_iterators(curly_node_t *cfg, const curly_node_t *child)
+{
+	curly_iter_t *iter;
+
+	for (iter = cfg->iterators; iter; iter = iter->chain) {
+		iter->next_item = NULL;
+		iter->valid = false;
+	}
+}
+
 /*
  * Accessor functions for child nodes
  */
@@ -164,6 +196,8 @@ curly_node_drop_child(curly_node_t *cfg, const curly_node_t *child)
 {
 	curly_node_t *cur, **pos;
 	unsigned int count = 0;
+
+	__curly_node_invalidate_iterators(cfg, child);
 
 	for (pos = &cfg->children; (cur = *pos) != NULL; ) {
 		if (cur == child) {
@@ -473,6 +507,48 @@ __curly_attr_list_free(curly_attr_t **list)
 		*list = attr->next;
 
 		__curly_attr_free(attr);
+	}
+}
+
+/*
+ * Iterate over curly nodes
+ */
+curly_iter_t *
+curly_node_iterate(curly_node_t *node)
+{
+	curly_iter_t *iter;
+
+	iter = calloc(1, sizeof(*iter));
+
+	/* Attach to iterator */
+	__curly_node_attach_iterator(node, iter);
+
+	/* Prime the next value */
+	iter->next_item = node->children;
+	iter->valid = true;
+
+	return iter;
+}
+
+curly_node_t *
+curly_iter_next_node(curly_iter_t *iter)
+{
+	curly_node_t *item;
+
+	if (!iter->valid)
+		return NULL;
+
+	if ((item = iter->next_item) != NULL)
+		iter->next_item = item->next;
+
+	return item;
+}
+
+void
+curly_iter_free(curly_iter_t *iter)
+{
+	if (iter->node) {
+		__curly_node_detach_iterator(iter->node, iter);
 	}
 }
 

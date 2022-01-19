@@ -46,7 +46,19 @@ struct curly_node {
 	/* Attributes */
 	curly_attr_t *	attrs;
 
+	/* Attach active iterators here */
+	curly_iter_t *	iterators;
+
 	curly_node_t *	children;
+};
+
+struct curly_iter {
+	curly_iter_t *	chain;
+
+	bool		valid;
+
+	curly_node_t *	node;
+	curly_node_t *	next_item;
 };
 
 extern curly_node_t *	curly_parse(const char *filename);

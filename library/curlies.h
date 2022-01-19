@@ -26,6 +26,7 @@
  * Handling curly config files
  */
 typedef struct curly_node	curly_node_t;
+typedef struct curly_iter	curly_iter_t;
 
 extern curly_node_t *		curly_node_new(void);
 extern void			curly_node_free(curly_node_t *);
@@ -45,6 +46,10 @@ extern void			curly_node_set_attr_list(curly_node_t *cfg, const char *name, cons
 extern void			curly_node_add_attr_list(curly_node_t *cfg, const char *name, const char *value);
 extern const char *		curly_node_get_attr(curly_node_t *cfg, const char *name);
 extern const char * const *	curly_node_get_attr_list(curly_node_t *cfg, const char *name);
+
+extern curly_iter_t *		curly_node_iterate(curly_node_t *);
+extern curly_node_t *		curly_iter_next_node(curly_iter_t *);
+extern void			curly_iter_free(curly_iter_t *);
 
 extern int			curly_node_format_from_string(const char *s);
 extern const char *		curly_node_format_to_string(int fmt);
