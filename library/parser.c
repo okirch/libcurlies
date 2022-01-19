@@ -41,7 +41,6 @@ typedef enum {
 
 	Identifier,
 	StringConstant,
-	NumberConstant,
 	LeftBrace,
 	RightBrace,
 	Semicolon,
@@ -156,7 +155,7 @@ curly_parser_do(curly_parser_t *p, curly_node_t *cfg)
 		if (tok == LeftBrace) {
 			/* identifier { ... group ... } */
 		} else
-		if (tok == Identifier || tok == StringConstant || tok == NumberConstant) {
+		if (tok == Identifier || tok == StringConstant) {
 			save_string(&name, value);
 
 			tok = curly_parser_get_token(p, &value);
@@ -198,7 +197,7 @@ curly_parser_do(curly_parser_t *p, curly_node_t *cfg)
 
 			while (tok == Comma) {
 				tok = curly_parser_get_token(p, &value);
-				if (tok == Identifier || tok == StringConstant || tok == NumberConstant) {
+				if (tok == Identifier || tok == StringConstant) {
 					curly_node_add_attr_list(cfg, identifier, value);
 					tok = curly_parser_get_token(p, &value);
 				} else {
@@ -499,14 +498,7 @@ curly_parser_get_token(curly_parser_t *parser, char **token_string)
 	if (isalnum(*pos)) {
 		while (isalnum(*pos) || (*pos && strchr("_.:/-", *pos)))
 			*dst++ = *pos++;
-
 		token = Identifier;
-	} else
-	if (isdigit(*pos)) {
-		while (isdigit(*pos))
-			*dst++ = *pos++;
-
-		token = NumberConstant;
 	} else
 	if (*pos == '"') {
 		char cc;
@@ -594,8 +586,6 @@ curly_token_name(curly_token_t token)
 		return "Identifier";
 	case StringConstant:
 		return "StringConstant";
-	case NumberConstant:
-		return "NumberConstant";
 	case LeftBrace:
 		return "LeftBrace";
 	case RightBrace:
