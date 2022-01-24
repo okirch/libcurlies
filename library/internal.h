@@ -24,8 +24,6 @@
 #include "config.h"
 
 
-typedef struct curly_attr curly_attr_t;
-
 #define CURLIES_NODE_SHORTLIST_MAX	2
 struct curly_attr {
 	curly_attr_t *	next;

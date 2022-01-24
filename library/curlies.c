@@ -511,6 +511,36 @@ __curly_attr_list_free(curly_attr_t **list)
 }
 
 /*
+ * Public attr accessor functions
+ * (used when iterating over a node's attributes)
+ */
+const char *
+curly_attr_get_name(const curly_attr_t *attr)
+{
+	return attr->name;
+}
+
+unsigned int
+curly_attr_get_count(const curly_attr_t *attr)
+{
+	return attr->nvalues;
+}
+
+const char *
+curly_attr_get_value(const curly_attr_t *attr, unsigned int i)
+{
+	if (i >= attr->nvalues)
+		return NULL;
+	return attr->values[i];
+}
+
+const char * const *
+curly_attr_get_values(const curly_attr_t *attr)
+{
+	return (const char * const *) attr->values;
+}
+
+/*
  * Iterate over curly nodes
  */
 curly_iter_t *
