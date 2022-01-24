@@ -273,12 +273,20 @@ curly_node_copy(curly_node_t *dst, const curly_node_t *src)
 void
 curly_node_set_attr(curly_node_t *cfg, const char *name, const char *value)
 {
+	/* Setting an attribute may delete a curly_attr_t.
+	 * Invalidate all iterators. */
+	__curly_node_invalidate_iterators(cfg, NULL);
+
 	__curly_attr_list_assign(&cfg->attrs, name, value);
 }
 
 void
 curly_node_set_attr_list(curly_node_t *cfg, const char *name, const char * const *values)
 {
+	/* Setting an attribute may delete a curly_attr_t.
+	 * Invalidate all iterators. */
+	__curly_node_invalidate_iterators(cfg, NULL);
+
 	__curly_attr_list_assign_list(&cfg->attrs, name, values);
 }
 
@@ -555,6 +563,7 @@ curly_node_iterate(curly_node_t *node)
 
 	/* Prime the next value */
 	iter->next_item = node->children;
+	iter->next_attr = node->attrs;
 	iter->valid = true;
 
 	return iter;
@@ -572,6 +581,20 @@ curly_iter_next_node(curly_iter_t *iter)
 		iter->next_item = item->next;
 
 	return item;
+}
+
+curly_attr_t *
+curly_iter_next_attr(curly_iter_t *iter)
+{
+	curly_attr_t *attr;
+
+	if (!iter->valid)
+		return NULL;
+
+	if ((attr = iter->next_attr) != NULL)
+		iter->next_attr = attr->next;
+
+	return attr;
 }
 
 void

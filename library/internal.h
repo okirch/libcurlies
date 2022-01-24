@@ -57,6 +57,7 @@ struct curly_iter {
 
 	curly_node_t *	node;
 	curly_node_t *	next_item;
+	curly_attr_t *	next_attr;
 };
 
 extern curly_node_t *	curly_parse(const char *filename);

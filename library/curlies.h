@@ -50,6 +50,7 @@ extern const char * const *	curly_node_get_attr_list(curly_node_t *cfg, const ch
 
 extern curly_iter_t *		curly_node_iterate(curly_node_t *);
 extern curly_node_t *		curly_iter_next_node(curly_iter_t *);
+extern curly_attr_t *		curly_iter_next_attr(curly_iter_t *);
 extern void			curly_iter_free(curly_iter_t *);
 
 extern const char *		curly_attr_get_name(const curly_attr_t *);
