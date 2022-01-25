@@ -40,8 +40,30 @@ typedef struct {
 	curly_node_t *	node;
 } curlies_ConfigNode;
 
+typedef struct {
+	PyObject_HEAD
+
+	PyObject *	node_object;
+	curly_attr_t *	attr;
+} curlies_Attr;
+
+typedef struct {
+	PyObject_HEAD
+
+	/* Strictly speaking, it should not be necessary to keep a reference
+	 * to the node object we're currently iterating. The low-level curly
+	 * iterator implementation should invalidate the iterator when it
+	 * detects that the node goes away. But better safe than start hunting
+	 * for weird crashes... */
+	PyObject *	node_object;
+	curly_iter_t *	iter;
+} curlies_Iterator;
+
 extern PyTypeObject	curlies_ConfigType;
 extern PyTypeObject	curlies_ConfigNodeType;
+extern PyTypeObject	curlies_ConfigAttrType;
+extern PyTypeObject	curlies_NodeIteratorType;
+extern PyTypeObject	curlies_AttrIteratorType;
 
 extern PyObject *	curlies_importType(const char *module, const char *typeName);
 extern PyObject *	curlies_callType(PyTypeObject *typeObject, PyObject *args, PyObject *kwds);

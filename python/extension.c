@@ -109,5 +109,8 @@ PyInit_curly(void)
 
 	curlies_registerType(m, "Config", &curlies_ConfigType);
 	curlies_registerType(m, "ConfigNode", &curlies_ConfigNodeType);
+	curlies_registerType(m, "Attr", &curlies_ConfigAttrType);
+	curlies_registerType(m, "NodeIterator", &curlies_NodeIteratorType);
+	curlies_registerType(m, "AttrIterator", &curlies_AttrIteratorType);
 	return m;
 }

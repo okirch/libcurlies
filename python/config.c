@@ -25,8 +25,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "curlies.h"
 
-extern PyTypeObject	curlies_ConfigNodeType;
-
 static void		Config_dealloc(curlies_Config *self);
 static PyObject *	Config_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 static int		Config_init(curlies_Config *self, PyObject *args, PyObject *kwds);
@@ -439,10 +437,10 @@ Config_save(curlies_Config *self, PyObject *args, PyObject *kwds)
 static PyObject *	ConfigNode_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 static int		ConfigNode_init(curlies_ConfigNode *self, PyObject *args, PyObject *kwds);
 static void		ConfigNode_dealloc(curlies_ConfigNode *self);
+static PyObject *	ConfigNode_iter(curlies_ConfigNode *self);
+static PyObject *	ConfigNode_attribute_iter(curlies_ConfigNode *self);
 static PyObject *	ConfigNode_getattro(curlies_ConfigNode *self, PyObject *name);
 static PyObject *	ConfigNode_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
-static PyObject *	ConfigNode_name(curlies_ConfigNode *self, PyObject *args, PyObject *kwds);
-static PyObject *	ConfigNode_type(curlies_ConfigNode *self, PyObject *args, PyObject *kwds);
 static PyObject *	ConfigNode_get_child(curlies_ConfigNode *self, PyObject *args, PyObject *kwds);
 static PyObject *	ConfigNode_add_child(curlies_ConfigNode *self, PyObject *args, PyObject *kwds);
 static PyObject *	ConfigNode_drop_child(curlies_ConfigNode *self, PyObject *args, PyObject *kwds);
@@ -453,17 +451,27 @@ static PyObject *	ConfigNode_set_value(curlies_ConfigNode *self, PyObject *args,
 static PyObject *	ConfigNode_unset_value(curlies_ConfigNode *self, PyObject *args, PyObject *kwds);
 static PyObject *	ConfigNode_get_values(curlies_ConfigNode *self, PyObject *args, PyObject *kwds);
 
+static PyObject *	ConfigAttr_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
+static int		ConfigAttr_init(curlies_Attr *self, PyObject *args, PyObject *kwds);
+static void		ConfigAttr_dealloc(curlies_Attr *self);
+static PyObject *	ConfigAttr_getattro(curlies_Attr *self, PyObject *name);
+
+static PyObject *	ConfigIter_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
+static int		ConfigIter_init(curlies_Iterator *self, PyObject *args, PyObject *kwds);
+static void		ConfigIter_dealloc(curlies_Iterator *self);
+static PyObject *	ConfigIter_iter(curlies_Iterator *self);
+static PyObject *	ConfigNodeIter_iternext(curlies_Iterator *self);
+static PyObject *	ConfigAttrIter_iternext(curlies_Iterator *self);
+
+/* should prolly be in a public header (if we had one) */
+extern int		ConfigIter_Check(PyObject *self);
+
 /*
  * Define the python bindings of class "Config"
+ * Much of this cruft is no longer needed and can go away.
  */
 static PyMethodDef curly_ConfigNodeMethods[] = {
       /* Top-level attributes */
-      { "name", (PyCFunction) ConfigNode_name, METH_VARARGS | METH_KEYWORDS,
-	"Get the node name"
-      },
-      { "type", (PyCFunction) ConfigNode_type, METH_VARARGS | METH_KEYWORDS,
-	"Get the node type"
-      },
       { "get_child", (PyCFunction) ConfigNode_get_child, METH_VARARGS | METH_KEYWORDS,
 	"Find the child node with given type and name",
       },
@@ -508,6 +516,59 @@ PyTypeObject curlies_ConfigNodeType = {
 	.tp_new		= ConfigNode_new,
 	.tp_dealloc	= (destructor) ConfigNode_dealloc,
 	.tp_getattro	= (getattrofunc) ConfigNode_getattro,
+	.tp_iter	= (getiterfunc) ConfigNode_iter,
+};
+
+PyTypeObject curlies_ConfigAttrType = {
+	PyVarObject_HEAD_INIT(NULL, 0)
+
+	.tp_name	= "curly.Attr",
+	.tp_basicsize	= sizeof(curlies_Attr),
+	.tp_flags	= Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+	.tp_doc		= "Config object representing a curly node attribute",
+
+	.tp_methods	= NULL,
+	.tp_init	= (initproc) ConfigAttr_init,
+	.tp_new		= ConfigAttr_new,
+	.tp_dealloc	= (destructor) ConfigAttr_dealloc,
+	.tp_getattro	= (getattrofunc) ConfigAttr_getattro,
+};
+
+
+static PyMethodDef curly_ConfigIterMethods[] = {
+      {	NULL }
+};
+
+PyTypeObject curlies_NodeIteratorType = {
+	PyVarObject_HEAD_INIT(NULL, 0)
+
+	.tp_name	= "curly.NodeIterator",
+	.tp_basicsize	= sizeof(curlies_Iterator),
+	.tp_flags	= Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+	.tp_doc		= "Object representing an iterator over the children of a Curly config node",
+
+	.tp_methods	= curly_ConfigIterMethods,
+	.tp_init	= (initproc) ConfigIter_init,
+	.tp_new		= ConfigIter_new,
+	.tp_dealloc	= (destructor) ConfigIter_dealloc,
+	.tp_iter	= (getiterfunc) ConfigIter_iter,
+	.tp_iternext	= (iternextfunc) ConfigNodeIter_iternext,
+};
+
+PyTypeObject curlies_AttrIteratorType = {
+	PyVarObject_HEAD_INIT(NULL, 0)
+
+	.tp_name	= "curly.AttrIterator",
+	.tp_basicsize	= sizeof(curlies_Iterator),
+	.tp_flags	= Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+	.tp_doc		= "Object representing an iterator over the attributes of a Curly config node",
+
+	.tp_methods	= curly_ConfigIterMethods,
+	.tp_init	= (initproc) ConfigIter_init,
+	.tp_new		= ConfigIter_new,
+	.tp_dealloc	= (destructor) ConfigIter_dealloc,
+	.tp_iter	= (getiterfunc) ConfigIter_iter,
+	.tp_iternext	= (iternextfunc) ConfigAttrIter_iternext,
 };
 
 /*
@@ -552,7 +613,7 @@ __ConfigNode_detach(curlies_ConfigNode *self)
 }
 
 /*
- * Initialize the status object
+ * Initialize the node object
  */
 static int
 ConfigNode_init(curlies_ConfigNode *self, PyObject *args, PyObject *kwds)
@@ -592,6 +653,25 @@ ConfigNode_Check(PyObject *self)
 	return PyType_IsSubtype(Py_TYPE(self), &curlies_ConfigNodeType);
 }
 
+static curly_node_t *
+ConfigNode_GetPointer(PyObject *self)
+{
+	curly_node_t *node;
+
+	if (!ConfigNode_Check(self)) {
+		PyErr_SetString(PyExc_RuntimeError, "node argument must be an instance of curly.ConfigNode");
+		return NULL;
+	}
+
+	node = ((curlies_ConfigNode *) self)->node;
+	if (node == NULL) {
+		PyErr_SetString(PyExc_RuntimeError, "ConfigNode object does not refer to anything");
+		return NULL;
+	}
+
+	return node;
+}
+
 static PyObject *
 ConfigNode_getattro(curlies_ConfigNode *self, PyObject *nameo)
 {
@@ -601,6 +681,13 @@ ConfigNode_getattro(curlies_ConfigNode *self, PyObject *nameo)
 
 		if (name == NULL)
 			return NULL;
+
+		if (!strcmp(name, "attributes"))
+			return ConfigNode_attribute_iter(self);
+		if (!strcmp(name, "type"))
+			return __to_string(curly_node_type(self->node));
+		if (!strcmp(name, "name"))
+			return __to_string(curly_node_name(self->node));
 
 		values = curly_node_get_attr_list(self->node, name);
 		if (values) {
@@ -650,22 +737,46 @@ __wrap_node(curly_node_t *node, curlies_ConfigNode *parent)
 	return (PyObject *) result;
 }
 
+/*
+ * def __iter__():
+ *	return ConfigIter(self)
+ */
 static PyObject *
-ConfigNode_type(curlies_ConfigNode *self, PyObject *args, PyObject *kwds)
+ConfigNode_iter(curlies_ConfigNode *self)
 {
-	if (!__check_call(self, args, kwds))
+	PyObject *tuple, *result;
+
+	if (!__check_node(self))
 		return NULL;
 
-	return __to_string(curly_node_type(self->node));
+	tuple = PyTuple_New(1);
+
+	PyTuple_SetItem(tuple, 0, (PyObject *) self);
+	Py_INCREF(self);
+
+	result = curlies_callType(&curlies_NodeIteratorType, tuple, NULL);
+
+	Py_DECREF(tuple);
+	return result;
 }
 
 static PyObject *
-ConfigNode_name(curlies_ConfigNode *self, PyObject *args, PyObject *kwds)
+ConfigNode_attribute_iter(curlies_ConfigNode *self)
 {
-	if (!__check_call(self, args, kwds))
+	PyObject *tuple, *result;
+
+	if (!__check_node(self))
 		return NULL;
 
-	return __to_string(curly_node_name(self->node));
+	tuple = PyTuple_New(1);
+
+	PyTuple_SetItem(tuple, 0, (PyObject *) self);
+	Py_INCREF(self);
+
+	result = curlies_callType(&curlies_AttrIteratorType, tuple, NULL);
+
+	Py_DECREF(tuple);
+	return result;
 }
 
 static PyObject *
@@ -868,3 +979,241 @@ ConfigNode_get_values(curlies_ConfigNode *self, PyObject *args, PyObject *kwds)
 	return __to_string_list(curly_node_get_attr_list(self->node, name));
 }
 
+/*
+ * Wrapper object for curly attributes
+ */
+static PyObject *
+ConfigAttr_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+	curlies_Attr *self;
+
+	self = (curlies_Attr *) type->tp_alloc(type, 0);
+	if (self == NULL)
+		return NULL;
+
+	/* init members */
+	self->node_object = NULL;
+	self->attr = NULL;
+
+	return (PyObject *)self;
+}
+
+static inline void
+__ConfigAttr_attach(curlies_Attr *self, PyObject *node_object, curly_attr_t *attr)
+{
+	assert(self->node_object == NULL);
+
+	self->attr = attr;
+	self->node_object = node_object;
+	Py_INCREF(node_object);
+}
+
+static inline void
+__ConfigAttr_detach(curlies_Attr *self)
+{
+	self->attr = NULL;
+
+	if (self->node_object)
+		Py_DECREF(self->node_object);
+	self->node_object = NULL;
+}
+
+/*
+ * Initialize the iterator object
+ */
+static int
+ConfigAttr_init(curlies_Attr *self, PyObject *args, PyObject *kwds)
+{
+	if (!__check_void_args(args, kwds))
+		return -1;
+
+	return 0;
+}
+
+/*
+ * Destructor: clean any state inside the Config object
+ */
+static void
+ConfigAttr_dealloc(curlies_Attr *self)
+{
+	__ConfigAttr_detach(self);
+}
+
+int
+ConfigAttr_Check(PyObject *self)
+{
+	return PyType_IsSubtype(Py_TYPE(self), &curlies_ConfigAttrType);
+}
+
+PyObject *
+ConfigAttr_getattro(curlies_Attr *self, PyObject *nameo)
+{
+	if (self->attr) {
+		const char *name = PyUnicode_AsUTF8(nameo);
+
+		if (name == NULL)
+			return NULL;
+
+		if (!strcmp(name, "name"))
+			return __to_string(curly_attr_get_name(self->attr));
+
+		if (!strcmp(name, "value"))
+			return __to_string(curly_attr_get_value(self->attr, 0));
+
+		if (!strcmp(name, "values"))
+			return __to_string_list(curly_attr_get_values(self->attr));
+	}
+
+	return PyObject_GenericGetAttr((PyObject *) self, nameo);
+}
+
+static PyObject *
+__wrap_attr(curly_attr_t *attr, curlies_ConfigNode *parent)
+{
+	PyObject *result;
+
+	result = curlies_callType(&curlies_ConfigAttrType, NULL, NULL);
+	if (result == NULL)
+		return NULL;
+
+	if (!ConfigAttr_Check(result)) {
+		PyErr_SetString(PyExc_RuntimeError, "cannot create ConfigAttr object");
+		result = NULL;
+	} else {
+		__ConfigAttr_attach((curlies_Attr *) result, parent->config_object, attr);
+	}
+
+	return (PyObject *) result;
+}
+
+
+/*
+ * Iterator implementation
+ */
+static PyObject *
+ConfigIter_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+	curlies_Iterator *self;
+
+	self = (curlies_Iterator *) type->tp_alloc(type, 0);
+	if (self == NULL)
+		return NULL;
+
+	/* init members */
+	self->node_object = NULL;
+	self->iter = NULL;
+
+	return (PyObject *)self;
+}
+
+static inline void
+__ConfigIter_attach(curlies_Iterator *self, PyObject *node_object, curly_iter_t *iter)
+{
+	assert(self->node_object == NULL);
+
+	self->iter = iter;
+	self->node_object = node_object;
+	Py_INCREF(node_object);
+}
+
+static inline void
+__ConfigIter_detach(curlies_Iterator *self)
+{
+	if (self->iter)
+		curly_iter_free(self->iter);
+	self->iter = NULL;
+
+	if (self->node_object)
+		Py_DECREF(self->node_object);
+	self->node_object = NULL;
+}
+
+/*
+ * Initialize the iterator object
+ */
+static int
+ConfigIter_init(curlies_Iterator *self, PyObject *args, PyObject *kwds)
+{
+	static char *kwlist[] = {
+		"config",
+		NULL
+	};
+	PyObject *node_object = NULL;
+
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O", kwlist, &node_object))
+		return -1;
+
+	if (node_object) {
+		curly_node_t *node;
+		curly_iter_t *iter;
+
+		if (!(node = ConfigNode_GetPointer(node_object)))
+			return -1;
+
+		if (!(iter = curly_node_iterate(node))) {
+			PyErr_SetString(PyExc_RuntimeError, "unable to create iterator for ConfigNode");
+			return -1;
+		}
+
+		/* printf("Attach node %s iter %p\n", curly_node_name(node), iter); */
+		__ConfigIter_attach(self, node_object, iter);
+	}
+
+	return 0;
+}
+
+/*
+ * Destructor: clean any state inside the Config object
+ */
+static void
+ConfigIter_dealloc(curlies_Iterator *self)
+{
+	__ConfigIter_detach(self);
+}
+
+int
+ConfigIter_Check(PyObject *self)
+{
+	return PyType_IsSubtype(Py_TYPE(self), &curlies_NodeIteratorType);
+}
+
+PyObject *
+ConfigIter_iter(curlies_Iterator *self)
+{
+	Py_INCREF(self);
+	return (PyObject *) self;
+}
+
+PyObject *
+ConfigNodeIter_iternext(curlies_Iterator *self)
+{
+	curly_node_t *node = NULL;
+
+	if (self->iter)
+		node = curly_iter_next_node(self->iter);
+
+	//printf("Next child for iter %p is %p\n", self->iter, node);
+	if (node == NULL) {
+		PyErr_SetString(PyExc_StopIteration, "stop");
+		return NULL;
+	}
+
+	return __wrap_node(node, (curlies_ConfigNode *) self->node_object);
+}
+
+PyObject *
+ConfigAttrIter_iternext(curlies_Iterator *self)
+{
+	curly_attr_t *attr = NULL;
+
+	if (self->iter)
+		attr = curly_iter_next_attr(self->iter);
+
+	//printf("Next child for iter %p is %p\n", self->iter, attr);
+	if (attr == NULL) {
+		PyErr_SetString(PyExc_StopIteration, "stop");
+		return NULL;
+	}
+
+	return __wrap_attr(attr, (curlies_ConfigNode *) self->node_object);
+}
