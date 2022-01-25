@@ -440,7 +440,7 @@ static void		ConfigNode_dealloc(curlies_ConfigNode *self);
 static PyObject *	ConfigNode_iter(curlies_ConfigNode *self);
 static PyObject *	ConfigNode_attribute_iter(curlies_ConfigNode *self);
 static PyObject *	ConfigNode_getattro(curlies_ConfigNode *self, PyObject *name);
-static PyObject *	ConfigNode_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
+static PyObject *	ConfigNode_str(curlies_ConfigNode *self);
 static PyObject *	ConfigNode_get_child(curlies_ConfigNode *self, PyObject *args, PyObject *kwds);
 static PyObject *	ConfigNode_add_child(curlies_ConfigNode *self, PyObject *args, PyObject *kwds);
 static PyObject *	ConfigNode_drop_child(curlies_ConfigNode *self, PyObject *args, PyObject *kwds);
@@ -517,6 +517,7 @@ PyTypeObject curlies_ConfigNodeType = {
 	.tp_dealloc	= (destructor) ConfigNode_dealloc,
 	.tp_getattro	= (getattrofunc) ConfigNode_getattro,
 	.tp_iter	= (getiterfunc) ConfigNode_iter,
+	.tp_str		= (reprfunc) ConfigNode_str,
 };
 
 PyTypeObject curlies_ConfigAttrType = {
@@ -749,6 +750,40 @@ __wrap_node(curly_node_t *node, curlies_ConfigNode *parent)
 
 	return (PyObject *) result;
 }
+
+/*
+ * __str__()
+ */
+PyObject *
+ConfigNode_str(curlies_ConfigNode *self)
+{
+	curly_node_t *node;
+	char buf1[256], buf2[4096];
+	const char *type, *name, *path;
+	unsigned int line;
+
+	if (!__check_node(self))
+		return NULL;
+
+	node = self->node;
+	type = curly_node_type(node);
+	name = curly_node_name(node);
+
+	if (name)
+		snprintf(buf1, sizeof(buf1), "%s \"%s\" { ... }", type, name);
+	else
+		snprintf(buf1, sizeof(buf1), "%s { ... }", type);
+
+	path = curly_node_get_source_file(node);
+	line = curly_node_get_source_line(node);
+
+	if (path != NULL) {
+		snprintf(buf2, sizeof(buf2), "%s (defined in %s, line %u)", buf1, path, line);
+		return PyUnicode_FromString(buf2);
+	}
+	return PyUnicode_FromString(buf1);
+}
+
 
 /*
  * def __iter__():
