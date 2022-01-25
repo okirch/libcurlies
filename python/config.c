@@ -688,6 +688,19 @@ ConfigNode_getattro(curlies_ConfigNode *self, PyObject *nameo)
 			return __to_string(curly_node_type(self->node));
 		if (!strcmp(name, "name"))
 			return __to_string(curly_node_name(self->node));
+		if (!strcmp(name, "origin")) {
+			char buffer[4096];
+			const char *path;
+
+			if (!(path = curly_node_get_source_file(self->node))) {
+				Py_INCREF(Py_None);
+				return Py_None;
+			}
+
+			snprintf(buffer, sizeof(buffer), "%s, line %u", path,
+					curly_node_get_source_line(self->node));
+			return __to_string(buffer);
+		}
 
 		values = curly_node_get_attr_list(self->node, name);
 		if (values) {

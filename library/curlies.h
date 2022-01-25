@@ -61,4 +61,7 @@ extern const char * const *	curly_attr_get_values(const curly_attr_t *);
 extern int			curly_node_format_from_string(const char *s);
 extern const char *		curly_node_format_to_string(int fmt);
 
+extern const char *		curly_node_get_source_file(const curly_node_t *);
+extern unsigned int		curly_node_get_source_line(const curly_node_t *);
+
 #endif /* CURLIES_H */

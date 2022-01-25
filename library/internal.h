@@ -23,6 +23,19 @@
 
 #include "config.h"
 
+typedef struct curly_shared_string curly_shared_string_t;
+typedef struct curly_origin curly_origin_t;
+
+struct curly_shared_string {
+	char *		value;
+	unsigned int	refcount;
+};
+
+struct curly_origin {
+	curly_shared_string_t *path;
+	unsigned int	line;
+};
+
 
 #define CURLIES_NODE_SHORTLIST_MAX	2
 struct curly_attr {
@@ -36,6 +49,8 @@ struct curly_attr {
 
 struct curly_node {
 	curly_node_t *	next;
+
+	curly_origin_t	origin;
 
 	/* The group's type (eg "node") and name (eg "client", "server") */
 	char *		type;
@@ -63,5 +78,9 @@ struct curly_iter {
 extern curly_node_t *	curly_parse(const char *filename);
 extern void		curly_write(const curly_node_t *cfg, const char *filename);
 extern void		curly_print(const curly_node_t *cfg, FILE *fp);
+
+extern void		curly_origin_init(curly_origin_t *, const char *path);
+extern void		curly_origin_set(curly_origin_t *dst, curly_shared_string_t *fo, unsigned int line);
+extern void		curly_origin_destroy(curly_origin_t *dst);
 
 #endif /* CURLIES_INTERNAL_H */

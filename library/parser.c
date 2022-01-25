@@ -23,6 +23,7 @@
 #include <ctype.h>
 #include <limits.h>
 #include <libgen.h>
+#include <assert.h>
 
 #include "curlies.h"
 #include "internal.h"
@@ -34,6 +35,8 @@ curly_file_t *	curly_file_open(const char *filename, const char *mode);
 void		curly_file_close(curly_file_t *file);
 static bool	curly_parse_include(curly_parser_t *p, const char *filename, curly_node_t *cfg);
 
+static curly_shared_string_t *curly_shared_string_new(const char *path);
+static void	curly_shared_string_release(curly_shared_string_t *);
 
 typedef enum {
 	Error = -1,
@@ -62,6 +65,8 @@ struct curly_file {
 struct curly_parser {
 	curly_file_t *	file;
 
+	curly_shared_string_t *file_origin;
+
 	bool		error;
 	bool		trace;
 
@@ -77,6 +82,8 @@ curly_parser_init(curly_parser_t *parser, curly_file_t *file)
 {
 	memset(parser, 0, sizeof(*parser));
 	parser->file = file;
+
+	parser->file_origin = curly_shared_string_new(file->name);
 }
 
 void
@@ -86,6 +93,9 @@ curly_parser_destroy(curly_parser_t *parser)
 		curly_file_close(parser->file);
 		parser->file = NULL;
 	}
+
+	curly_shared_string_release(parser->file_origin);
+
 	memset(parser, 0, sizeof(*parser));
 }
 
@@ -180,6 +190,9 @@ curly_parser_do(curly_parser_t *p, curly_node_t *cfg)
 				curly_parser_error(p, "unable to create subgroup");
 				return false;
 			}
+
+			/* Save file and line number where we defined this node */
+			curly_origin_set(&subgroup->origin, p->file_origin, p->file->lineno);
 
 			if (!curly_parser_do(p, subgroup))
 				return false;
@@ -414,6 +427,71 @@ curly_file_gets(char *buffer, size_t size, curly_file_t *file)
 	}
 
 	return offset != 0;
+}
+
+/*
+ * Track the origin of where a file was defined
+ */
+curly_shared_string_t *
+curly_shared_string_new(const char *value)
+{
+	curly_shared_string_t *shared;
+
+	shared = calloc(1, sizeof(*shared));
+	save_string(&shared->value, value);
+	shared->refcount = 1;
+	return shared;
+}
+
+static curly_shared_string_t *
+curly_shared_string_hold(curly_shared_string_t *shared)
+{
+	if (shared != NULL) {
+		shared->refcount += 1;
+
+		/* Ensure that the refcount was >0 to begin with, and did not overflow when incrementing it */
+		assert(shared->refcount > 1);
+	}
+
+	return shared;
+}
+
+static void
+curly_shared_string_release(curly_shared_string_t *shared)
+{
+	assert(shared->refcount);
+	if (shared->refcount > 1) {
+		shared->refcount -= 1;
+		return;
+	}
+
+	save_string(&shared->value, NULL);
+	free(shared);
+}
+
+void
+curly_origin_destroy(curly_origin_t *origin)
+{
+	if (origin->path) {
+		curly_shared_string_release(origin->path);
+		origin->path = NULL;
+	}
+	origin->line = 0;
+}
+
+void
+curly_origin_init(curly_origin_t *origin, const char *path)
+{
+	origin->path = curly_shared_string_new(path);
+	origin->line = 0;
+}
+
+void
+curly_origin_set(curly_origin_t *dst, curly_shared_string_t *path, unsigned int line)
+{
+	curly_origin_destroy(dst);
+	dst->path = curly_shared_string_hold(path);
+	dst->line = line;
 }
 
 int

@@ -6,8 +6,8 @@
 import curly
 
 def dump(node, indent = ""):
-	type = node.type()
-	name = node.name()
+	type = node.type
+	name = node.name
 	if name is not None:
 		print("%s%s %s:" % (indent, type, name))
 	else:

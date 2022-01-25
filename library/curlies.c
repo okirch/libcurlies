@@ -66,6 +66,7 @@ __curly_node_new(const char *type, const char *name)
 	cfg = (curly_node_t *) calloc(1, sizeof(*cfg));
 	cfg->type = type? strdup(type) : NULL;
 	cfg->name = name? strdup(name) : NULL;
+	/* cfg->origin is initialized with 0s, which is safe */
 	return cfg;
 }
 
@@ -75,6 +76,7 @@ __curly_node_new(const char *type, const char *name)
 void
 curly_node_free(curly_node_t *cfg)
 {
+	curly_origin_destroy(&cfg->origin);
 	__curly_node_free(cfg);
 }
 
@@ -603,6 +605,23 @@ curly_iter_free(curly_iter_t *iter)
 	if (iter->node) {
 		__curly_node_detach_iterator(iter->node, iter);
 	}
+}
+
+/*
+ * Support error reporting
+ */
+const char *
+curly_node_get_source_file(const curly_node_t *cfg)
+{
+	if (cfg->origin.path == NULL)
+		return NULL;
+	return cfg->origin.path->value;
+}
+
+unsigned int
+curly_node_get_source_line(const curly_node_t *cfg)
+{
+	return cfg->origin.line;
 }
 
 /*
