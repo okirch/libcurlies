@@ -15,7 +15,7 @@ curlies-test: curlies-test.c
 #
 # This ensures that we parse all sample files as expected, and that we're also
 # able to parse the files we're writing.
-test: curlies-test
+test:: curlies-test
 	mkdir -p output
 	@for conf in `ls input`; do \
 		test "$$conf" = "inclA.conf" && continue; \
@@ -24,6 +24,11 @@ test: curlies-test
 		diff -wu expected/$$conf output/$$conf || exit 1; \
 		LD_PRELOAD=../library/libcurlies.so ./curlies-test output/$$conf | diff -wu - expected/$$conf || exit 1; \
 		echo "  Okay, produced expected result"; \
+	done
+
+test pytest::
+	@for script in `ls python`; do \
+		LD_PRELOAD=../library/libcurlies.so PYTHONPATH=../python python3 python/$$script || exit 1; \
 	done
 
 install: ;
