@@ -4,6 +4,7 @@
 *.so
 library/config.h
 library/version.h
+library/libcurlies.a
 Make.defs
 libcurlies.pc
 tests/output
