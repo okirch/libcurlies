@@ -24,6 +24,14 @@ function uc_add_option_with_nodefault {
 
 function uc_add_option_enable {
 	__uc_long_options+=",enable-$1,disable-$1"
+
+	case "$2" in
+	true|false)
+		export uc_enable_$1=$2;;
+	"")	export uc_enable_$1=false;;
+	*)
+		uc_fatal "Invalid default \"$2\" for --enable-$1";;
+	esac
 }
 
 for o in libdir arch-libdir libexecdir etcdir bindir mandir; do
@@ -33,7 +41,8 @@ done
 uc_add_option_with_nodefault platform
 uc_add_option_with_nodefault os-vendor
 uc_add_option_noarg always-use-prefix
-uc_add_option_enable manpages
+uc_add_option_enable manpages true
+uc_add_option_enable static false
 
 uc_add_help <<EOH
   Override various installation paths:
@@ -48,9 +57,13 @@ uc_add_help <<EOH
   Override platform detection
         --with-platform=NAME (NAME=linux, macos, freebsd)
  
+  Build options
+        --enable-static, --disable-static
+                Do/Do not build static libraries and binaries (default: $uc_enable_static)
+
   Installation options
         --enable-manpages, --disable-manpages
-                Do/Do not install manual pages
+                Do/Do not install manual pages (default: $uc_enable_manpages)
         --always-use-prefix
                 Fail if an installation directory does not match
                 \$prefix. This can happen with python/ruby, where

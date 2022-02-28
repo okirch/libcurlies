@@ -47,6 +47,7 @@ if [ "$uc_with_python" = "none" ]; then
 	uc_python_cflags=""
 	uc_python_libdir=""
 	uc_python_libs=""
+	uc_python_interp_path=""
 	uc_python_package_dir=""
 else
 	echo -n "Checking for python interpreter... "
