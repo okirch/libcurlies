@@ -4,9 +4,9 @@ include ../Make.defs
 
 CFLAGS	= -D_GNU_SOURCE $(CCOPT)
 
-LIB_OBJS= curlies.o \
+LIBOBJS = curlies.o \
 	  parser.o
-STATIC_LIB_OBJS = $(addprefix static/,$(LIB_OBJS))
+STATIC_LIBOBJS = $(addprefix static/,$(LIBOBJS))
 
 SHLIB	= libcurlies.$(SHLIB_EXTENSION)
 VERSIONED_SHLIB = \
@@ -27,12 +27,12 @@ test: ;
 
 install: $(INSTALL)
 
-$(SHLIB): $(LIB_OBJS) Makefile
-	$(CC) $(CFLAGS) -o $@ --shared -Wl,-soname,$(VERSIONED_SHLIB) $(LIB_OBJS)
+$(SHLIB): $(LIBOBJS) Makefile
+	$(CC) $(CFLAGS) -o $@ --shared -Wl,-soname,$(VERSIONED_SHLIB) $(LIBOBJS)
 
 
-$(STATICLIB): $(STATIC_LIB_OBJS)
-	$(AR) crv $@ $(STATIC_LIB_OBJS)
+$(STATICLIB): $(STATIC_LIBOBJS)
+	$(AR) crv $@ $(STATIC_LIBOBJS)
 
 install-headers: curlies.h
 	install -d $(DESTDIR)$(INCDIR)
