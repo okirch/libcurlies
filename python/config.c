@@ -867,8 +867,6 @@ ConfigNode_get_child(curlies_ConfigNode *self, PyObject *args, PyObject *kwds)
 	return __wrap_node(child, self);
 }
 
-extern curly_node_t *      curly_node_add_child(curly_node_t *cfg, const char *type, const char *name);
-
 static PyObject *
 ConfigNode_add_child(curlies_ConfigNode *self, PyObject *args, PyObject *kwds)
 {

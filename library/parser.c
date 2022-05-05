@@ -43,6 +43,7 @@ typedef enum {
 	EndOfFile = 0,
 
 	Identifier,
+	Modifier,
 	StringConstant,
 	LeftBrace,
 	RightBrace,
@@ -50,6 +51,7 @@ typedef enum {
 	Comma,
 } curly_token_t;
 
+#define CURLY_MODIFIER_UPDATE	0x0001
 
 void		curly_parser_pushback(curly_parser_t *, curly_token_t);
 void		curly_parser_error(curly_parser_t *, const char *);
@@ -110,14 +112,23 @@ save_string(char **var, const char *value)
 		*var = strdup(value);
 }
 
+static int
+curly_process_modifier(const char *value)
+{
+	if (!strcmp(value, "update"))
+		return CURLY_MODIFIER_UPDATE;
+	return -1;
+}
+
 bool
-curly_parser_do(curly_parser_t *p, curly_node_t *cfg)
+curly_parser_do(curly_parser_t *p, curly_node_t *cfg, unsigned int group_modifiers)
 {
 	curly_token_t tok;
 	char *value;
 
 	while ((tok = curly_parser_get_token(p, &value)) != EndOfFile) {
 		char *identifier = NULL, *name = NULL;
+		unsigned int modifiers = group_modifiers;
 		curly_node_t *subgroup;
 
 		switch (tok) {
@@ -134,6 +145,22 @@ curly_parser_do(curly_parser_t *p, curly_node_t *cfg)
 
 		case Identifier:
 			/* Just what we expect */
+			break;
+
+		case Modifier:
+			do {
+				int m;
+
+				if ((m = curly_process_modifier(value)) < 0) {
+					curly_parser_error(p, "unknown modifier");
+					return false;
+				}
+				modifiers |= m;
+				tok = curly_parser_get_token(p, &value);
+			} while (tok == Modifier);
+
+			if (tok != Identifier)
+				goto unexpected_token_error;
 			break;
 
 		default:
@@ -185,7 +212,11 @@ curly_parser_do(curly_parser_t *p, curly_node_t *cfg)
 		case LeftBrace:
 			/* identifier { ... }
 			 * identifier name { ... } */
-			subgroup = curly_node_add_child(cfg, identifier, name);
+			subgroup = NULL;
+			if (modifiers & CURLY_MODIFIER_UPDATE)
+				subgroup = curly_node_get_child(cfg, identifier, name);
+			if (subgroup == NULL)
+				subgroup = curly_node_add_child(cfg, identifier, name);
 			if (subgroup == NULL) {
 				curly_parser_error(p, "unable to create subgroup");
 				return false;
@@ -194,7 +225,7 @@ curly_parser_do(curly_parser_t *p, curly_node_t *cfg)
 			/* Save file and line number where we defined this node */
 			curly_origin_set(&subgroup->origin, p->file_origin, p->file->lineno);
 
-			if (!curly_parser_do(p, subgroup))
+			if (!curly_parser_do(p, subgroup, modifiers))
 				return false;
 
 			tok = curly_parser_get_token(p, &value);
@@ -262,7 +293,7 @@ __curly_parse(const char *filename, curly_node_t *cfg)
 
 	curly_parser_init(&parser, file);
 	//parser.trace = true;
-	rv = curly_parser_do(&parser, cfg);
+	rv = curly_parser_do(&parser, cfg, 0);
 	curly_parser_destroy(&parser);
 
 	return rv;
@@ -577,6 +608,12 @@ curly_parser_get_token(curly_parser_t *parser, char **token_string)
 		while (isalnum(*pos) || (*pos && strchr("_.:/-", *pos)))
 			*dst++ = *pos++;
 		token = Identifier;
+	} else
+	if (*pos == '%' && isalnum(pos[1])) {
+		pos += 1;
+		while (isalnum(*pos) || (*pos && strchr("_.:/-", *pos)))
+			*dst++ = *pos++;
+		token = Modifier;
 	} else
 	if (*pos == '"') {
 		char cc;
